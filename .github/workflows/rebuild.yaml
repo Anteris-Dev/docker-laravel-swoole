@@ -1,5 +1,8 @@
 name: Rebuild
 
+on:
+  workflow_dispatch:
+
 jobs:
   fetch-versions:
     runs-on: ubuntu-latest
