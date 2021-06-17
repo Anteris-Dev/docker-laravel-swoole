@@ -1,5 +1,3 @@
-ARG LARAVEL_VERSION="8.*"
-
 # Here we are going to install PHP extension requirements that did not come
 # with the default PHP container. This will be necessary for Laravel and Swoole.
 FROM php:8.0-cli-alpine3.13 as php-base
@@ -29,6 +27,8 @@ FROM php-base as octane-base
 # Here we have a build container so that it is not necessary to pull composer into
 # the final container. We are going to create a new Laravel project and install Octane.
 FROM php-base as laravel
+    ARG LARAVEL_VERSION="8.*"
+
     COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
     RUN cd /srv && \
