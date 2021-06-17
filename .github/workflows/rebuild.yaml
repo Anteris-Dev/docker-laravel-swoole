@@ -33,5 +33,8 @@ jobs:
     name: Build ${{ matrix.TAG }}
 
     steps:
-      - name: Test Output
-        run: echo "${{ needs.fetch-versions.outputs.LARAVEL_VERSION }}"
+      - name: Set Composer Project Version
+        run: |
+          echo "COMPOSER_VERSION=$(([ ${#${{ matrix.TAG }}} -eq 1 ] && echo ${{ matrix.TAG }}.*) || echo ${{ matrix.TAG }})" >> $GITHUB_ENV
+      - name: Test Composer Project Version
+        run: echo ${{ env.COMPOSER_VERSION }}
