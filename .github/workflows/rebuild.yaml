@@ -28,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        TAG: ${{ needs.fetch-versions.outputs.CURRENT_TAGS | jq }}
+        TAG: ${{ fromJson(needs.fetch-versions.outputs.CURRENT_TAGS) }}
     
     name: P${{ matrix.TAG }}
 
