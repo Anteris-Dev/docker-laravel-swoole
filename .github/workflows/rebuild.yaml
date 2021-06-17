@@ -33,8 +33,62 @@ jobs:
     name: Build ${{ matrix.TAG }}
 
     steps:
-      - name: Set Composer Project Version
+      - name: Set Laravel install version
         run: |
-          echo "COMPOSER_VERSION=$([ $(echo ${{ matrix.TAG }} | awk '{print length}') -eq 1 ] && echo "${{ matrix.TAG}}.*" || echo ${{ matrix.TAG }})" >> $GITHUB_ENV
-      - name: Test Composer Project Version
-        run: echo ${{ env.COMPOSER_VERSION }}
+          echo "LARAVEL_INSTALL_VERSION=$([ $(echo ${{ matrix.TAG }} | awk '{print length}') -eq 1 ] && echo "${{ matrix.TAG}}.*" || echo ${{ matrix.TAG }})" >> $GITHUB_ENV
+
+      - uses: actions/checkout@v2
+        name: Check out code
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-buildx-
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Build and push to Docker registry
+        id: docker_build
+        if: ${{ needs.fetch-versions.outputs.LARAVEL_VERSION != matrix.TAG }}
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          build-args: "LARAVEL_VERSION=${{ env.LARAVEL_INSTALL_VERSION }}"
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+          push: true
+          tags: anterisdev/laravel-swoole:${{ matrix.TAG }}
+
+      - name: Build and push to Docker registry
+        id: docker_build
+        if: ${{ needs.fetch-versions.outputs.LARAVEL_VERSION == matrix.TAG }}
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          build-args: "LARAVEL_VERSION=${{ env.LARAVEL_INSTALL_VERSION }}"
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+          push: true
+          tags: anterisdev/laravel-swoole:latest,anterisdev/laravel-swoole:${{ matrix.TAG }}
+
+      - name: Image digest
+        if: steps.docker_build.conclusion == 'success'
+        run: echo ${{ steps.docker-build.outputs.digest }}
+
+      # Temp fix
+      # https://github.com/docker/build-push-action/issues/252
+      # https://github.com/moby/buildkit/issues/1896
+      - name: Move cache
+        if: steps.docker_build.conclusion == 'success'
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
