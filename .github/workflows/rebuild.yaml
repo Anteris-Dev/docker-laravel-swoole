@@ -35,6 +35,6 @@ jobs:
     steps:
       - name: Set Composer Project Version
         run: |
-          echo "COMPOSER_VERSION=$(([ ${#"${{ matrix.TAG }}"} -eq 1 ] && echo ${{ matrix.TAG }}.*) || echo ${{ matrix.TAG }})" >> $GITHUB_ENV
+          echo "COMPOSER_VERSION=$([ $(echo ${{ matrix.TAG }} | awk '{print length}') -eq 1 ] && echo "${{ matrix.TAG}}.*" || echo ${{ matrix.TAG }})" >> $GITHUB_ENV
       - name: Test Composer Project Version
         run: echo ${{ env.COMPOSER_VERSION }}
