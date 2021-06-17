@@ -30,7 +30,7 @@ jobs:
       matrix:
         TAG: ${{ fromJson(needs.fetch-versions.outputs.CURRENT_TAGS) }}
     
-    name: P${{ matrix.TAG }}
+    name: Build ${{ matrix.TAG }}
 
     steps:
       - name: Test Output
