@@ -58,7 +58,7 @@ jobs:
 
       - name: Determine Docker Tags
         id: docker-tags
-        run: echo "::set-output name=tags::$(echo "$([ "${{ matrix.TAG }}" == "${{ needs.fetch-versions.outputs.LARAVEL_VERSION }}" ] && echo "anterisdev/laravel-swoole:latest,")anterisdev/laravel-swoole:${{ matrix.TAG }}")
+        run: echo "::set-output name=tags::$(echo $([ "${{ matrix.TAG }}" == "${{ needs.fetch-versions.outputs.LARAVEL_VERSION }}" ] && echo "anterisdev/laravel-swoole:latest,")anterisdev/laravel-swoole:${{ matrix.TAG }})
 
       - name: Test Docker Tags
         run: echo "${{ steps.docker-tags.tags }}"
