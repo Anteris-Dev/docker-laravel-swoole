@@ -60,12 +60,8 @@ jobs:
         id: docker-tags
         run: echo "::set-output name=tags::$(echo $([ "${{ matrix.TAG }}" == "${{ needs.fetch-versions.outputs.LARAVEL_VERSION }}" ] && echo "anterisdev/laravel-swoole:latest,")anterisdev/laravel-swoole:${{ matrix.TAG }})"
 
-      - name: Test Docker Tags
-        run: echo "${{ steps.docker-tags.outputs.tags }}"
-
       - name: Build and push to Docker registry
         id: docker-build
-        if: ${{ needs.fetch-versions.outputs.LARAVEL_VERSION != matrix.TAG }}
         uses: docker/build-push-action@v2
         with:
           context: .
@@ -76,7 +72,7 @@ jobs:
           tags: ${{ steps.docker-tags.outputs.tags }}
 
       - name: Image digest
-        if: steps.docker_build.conclusion == 'success'
+        if: steps.docker-build.conclusion == 'success'
         run: echo ${{ steps.docker-build.outputs.digest }}
 
       # Temp fix
