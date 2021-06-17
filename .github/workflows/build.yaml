@@ -2,6 +2,7 @@ name: Build
 on:
   schedule:
     - cron: '0 0 * * *'
+  workflow_dispatch:
 
 jobs:
   build-container:
@@ -39,7 +40,7 @@ jobs:
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
       - name: Build and push to Docker registry
-        id: docker_build
+        id: docker-build
         uses: docker/build-push-action@v2
         if: ${{ env.DOCKER_MANIFEST == 'notexists' || github.event_name == 'push' }}
         with:
@@ -51,14 +52,14 @@ jobs:
           tags: anterisdev/laravel-swoole:latest,anterisdev/laravel-swoole:${{ env.LARAVEL_MAJOR_VERSION }},anterisdev/laravel-swoole:${{ env.LARAVEL_VERSION }}
         
       - name: Image digest
-        if: steps.docker_build.conclusion == 'success'
+        if: steps.docker-build.conclusion == 'success'
         run: echo ${{ steps.docker-build.outputs.digest }}
 
       # Temp fix
       # https://github.com/docker/build-push-action/issues/252
       # https://github.com/moby/buildkit/issues/1896
       - name: Move cache
-        if: steps.docker_build.conclusion == 'success'
+        if: steps.docker-build.conclusion == 'success'
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
