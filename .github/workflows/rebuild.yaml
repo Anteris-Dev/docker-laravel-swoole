@@ -1,0 +1,34 @@
+name: Rebuild
+
+jobs:
+  fetch-versions:
+    runs-on: ubuntu-latest
+    outputs:
+      LARAVEL_VERSION: ${{ steps.fetch-laravel.outputs.version }}
+      CURRENT_TAGS: ${{ steps.fetch-docker.outputs.tags }}
+    steps:
+      - name: Fetch the latest Laravel version
+        id: fetch-laravel
+        run: |
+          curl -sL https://api.github.com/repos/laravel/laravel/releases/latest | jq -r ".tag_name" > .version
+          echo "::set-output name=version::$(cat .version | awk '{print substr($0, 2)}')"
+      
+      - name: Fetch existing containers
+        id: fetch-docker
+        run: |
+          ARRAY=$(curl -sL https://registry.hub.docker.com/v1/repositories/anterisdev/laravel-swoole/tags | jq -r '[ .[] | select(.name != "latest") | .name ]')
+          echo "::set-output name=tags::"$ARRAY""
+
+  rebuild-containers:
+    runs-on: ubuntu-latest
+    needs: fetch-versions
+    strategy:
+      fail-fast: false
+      matrix:
+        TAG: ${{ needs.fetch-versions.outputs.CURRENT_TAGS }}
+    
+    name: P${{ matrix.TAG }}
+
+    steps:
+      - name: Test Output
+        run: echo "${{ needs.fetch-versions.outputs.LARAVEL_VERSION }}"
