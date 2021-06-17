@@ -56,8 +56,12 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
+      - name: Determine Docker Tags
+        id: docker-tags
+        run: echo "::set-output name=tags::$(echo $([ ${{ matrix.TAG }} -eq ${{ needs.fetch-versions.outputs.LARAVEL_VERSION }} ] && echo 'anterisdev/laravel-swoole:latest,')'anterisdev/laravel-swoole:${{ matrix.TAG }}')"
+
       - name: Build and push to Docker registry
-        id: docker_build
+        id: docker-build
         if: ${{ needs.fetch-versions.outputs.LARAVEL_VERSION != matrix.TAG }}
         uses: docker/build-push-action@v2
         with:
@@ -66,19 +70,7 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
           push: true
-          tags: anterisdev/laravel-swoole:${{ matrix.TAG }}
-
-      - name: Build and push to Docker registry
-        id: docker_build
-        if: ${{ needs.fetch-versions.outputs.LARAVEL_VERSION == matrix.TAG }}
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          build-args: "LARAVEL_VERSION=${{ env.LARAVEL_INSTALL_VERSION }}"
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new
-          push: true
-          tags: anterisdev/laravel-swoole:latest,anterisdev/laravel-swoole:${{ matrix.TAG }}
+          tags: ${{ steps.docker-tags.tags }}
 
       - name: Image digest
         if: steps.docker_build.conclusion == 'success'
@@ -88,7 +80,7 @@ jobs:
       # https://github.com/docker/build-push-action/issues/252
       # https://github.com/moby/buildkit/issues/1896
       - name: Move cache
-        if: steps.docker_build.conclusion == 'success'
+        if: steps.docker-build.conclusion == 'success'
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
