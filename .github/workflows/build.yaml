@@ -1,0 +1,71 @@
+name: Build
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  build-container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        name: Check out code
+
+      - name: Fetch the latest Laravel version
+        run: |
+          curl -sL https://api.github.com/repos/laravel/laravel/releases/latest | jq -r ".tag_name" > .version
+          echo "LARAVEL_VERSION=$(cat .version | awk '{print substr($0, 2)}')" >> $GITHUB_ENV
+          echo "LARAVEL_MAJOR_VERSION=$(cat .version | awk '{print substr($0, 2, 1)}')" >> $GITHUB_ENV
+
+      - name: Fetch the version of the last container built
+        run: echo "DOCKER_MANIFEST=$((docker manifest inspect anterisdev/laravel-swoole:${{ env.LARAVEL_VERSION }} > /dev/null && echo 'exists') || echo 'notexists')" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+        if: ${{ env.DOCKER_MANIFEST == 'notexists' || github.event_name == 'push' }}
+
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        if: ${{ env.DOCKER_MANIFEST == 'notexists' || github.event_name == 'push' }}
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-buildx-
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        if: ${{ env.DOCKER_MANIFEST == 'notexists' || github.event_name == 'push' }}
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Build and push to Docker registry
+        id: docker_build
+        uses: docker/build-push-action@v2
+        if: ${{ env.DOCKER_MANIFEST == 'notexists' || github.event_name == 'push' }}
+        with:
+          context: .
+          build-args: "LARAVEL_VERSION=${{ env.LARAVEL_VERSION }}"
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+          push: true
+          tags: anterisdev/laravel-swoole:latest,anterisdev/laravel-swoole:${{ env.LARAVEL_MAJOR_VERSION }},anterisdev/laravel-swoole:${{ env.LARAVEL_VERSION }}
+        
+      - name: Image digest
+        if: steps.docker_build.conclusion == 'success'
+        run: echo ${{ steps.docker-build.outputs.digest }}
+
+      # Temp fix
+      # https://github.com/docker/build-push-action/issues/252
+      # https://github.com/moby/buildkit/issues/1896
+      - name: Move cache
+        if: steps.docker_build.conclusion == 'success'
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
